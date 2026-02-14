@@ -335,6 +335,28 @@
             text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
             pointer-events: none;
         }
+
+        .lang-toggle {
+            display: flex;
+            background: #09090b;
+            border-radius: 20px;
+            padding: 2px;
+            border: 1px solid #18181b;
+        }
+
+        .lang-btn {
+            padding: 4px 12px;
+            font-size: 10px;
+            font-weight: 900;
+            border-radius: 18px;
+            transition: all 0.2s;
+            color: #3f3f46;
+        }
+
+        .lang-btn.active {
+            background: #27272a;
+            color: #fbbf24;
+        }
     </style>
 </head>
 <body>
@@ -347,10 +369,18 @@
             </div>
 
             <div class="panel-content space-y-6">
-                <!-- Tempo -->
+                <!-- Taal & Tempo Header -->
+                <div class="flex justify-between items-center mb-2">
+                    <span data-i18n="tempo" class="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Tempo</span>
+                    <div class="lang-toggle">
+                        <button onclick="setLang('nl')" id="lang-nl" class="lang-btn active">NL</button>
+                        <button onclick="setLang('en')" id="lang-en" class="lang-btn">EN</button>
+                    </div>
+                </div>
+
+                <!-- Tempo Slider -->
                 <div>
-                    <div class="flex justify-between items-end mb-2">
-                        <span class="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Tempo</span>
+                    <div class="flex justify-end mb-2">
                         <span class="text-xl font-black text-yellow-500"><span id="bpm-val">120</span> <small class="text-[10px]">BPM</small></span>
                     </div>
                     <input type="range" id="bpm-slider" min="40" max="240" value="120">
@@ -359,14 +389,14 @@
                 <!-- Volumeregeling -->
                 <div>
                     <div class="flex justify-between items-end mb-2">
-                        <span class="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Volume</span>
+                        <span data-i18n="volume" class="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Volume</span>
                         <span class="text-sm font-black text-yellow-500"><span id="vol-val">80</span>%</span>
                     </div>
                     <input type="range" id="vol-slider" min="0" max="100" value="80">
                 </div>
                 
                 <div class="space-y-1">
-                    <label class="text-zinc-500 text-[10px] uppercase font-black">Maatsoort</label>
+                    <label data-i18n="timeSig" class="text-zinc-500 text-[10px] uppercase font-black">Maatsoort</label>
                     <div class="picker-container">
                         <div class="picker-indicator"></div>
                         <div id="ts-scroll" class="scroll-area"></div>
@@ -374,7 +404,7 @@
                 </div>
 
                 <div class="space-y-1">
-                    <label class="text-zinc-500 text-[10px] uppercase font-black">Subdivisie</label>
+                    <label data-i18n="subdiv" class="text-zinc-500 text-[10px] uppercase font-black">Subdivisie</label>
                     <div class="picker-container">
                         <div class="picker-indicator"></div>
                         <div id="sub-scroll" class="scroll-area"></div>
@@ -382,7 +412,7 @@
                 </div>
 
                 <div class="space-y-1">
-                    <label class="text-zinc-500 text-[10px] uppercase font-black">Instrument</label>
+                    <label data-i18n="instr" class="text-zinc-500 text-[10px] uppercase font-black">Instrument</label>
                     <div class="picker-container">
                         <div class="picker-indicator"></div>
                         <div id="sound-scroll" class="scroll-area"></div>
@@ -390,8 +420,8 @@
                 </div>
 
                 <div class="flex gap-2">
-                    <button id="sound-btn" class="btn-action active flex-1">Geluid</button>
-                    <button id="accent-btn" class="btn-action active flex-1">Accent</button>
+                    <button id="sound-btn" class="btn-action active flex-1" data-i18n="soundBtn">Geluid</button>
+                    <button id="accent-btn" class="btn-action active flex-1" data-i18n="accentBtn">Accent</button>
                 </div>
             </div>
         </div>
@@ -421,6 +451,51 @@
     </div>
 
     <script>
+        // Taalkeuze logica
+        const translations = {
+            nl: {
+                tempo: "Tempo",
+                volume: "Volume",
+                timeSig: "Maatsoort",
+                subdiv: "Subdivisie",
+                instr: "Instrument",
+                soundBtn: "Geluid",
+                accentBtn: "Accent",
+                sounds: ["STANDAARD", "WOODBLOCK", "COWBELL", "CLAVES", "SCHEET"]
+            },
+            en: {
+                tempo: "Tempo",
+                volume: "Volume",
+                timeSig: "Time Signature",
+                subdiv: "Subdivision",
+                instr: "Instrument",
+                soundBtn: "Sound",
+                accentBtn: "Accent",
+                sounds: ["STANDARD", "WOODBLOCK", "COWBELL", "CLAVES", "FART"]
+            }
+        };
+
+        let currentLang = 'nl';
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.innerText = translations[lang][key];
+            });
+
+            // Update picker labels
+            const soundItems = soundScroll.querySelectorAll('.picker-item');
+            soundItems.forEach((item, idx) => {
+                const symbol = soundTypes[idx].symbol;
+                item.innerHTML = `<span class="text-lg">${symbol}</span><span class="text-[8px] mt-1">${translations[lang].sounds[idx]}</span>`;
+            });
+
+            // Update buttons
+            document.getElementById('lang-nl').classList.toggle('active', lang === 'nl');
+            document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+        }
+
         let audioCtx = null;
         let nextNoteTime = 0.0;
         let timerID = null;
@@ -454,11 +529,11 @@
         ];
 
         const soundTypes = [
-            { label: 'STANDAARD', id: 'tick', symbol: '⏱️' },
-            { label: 'WOODBLOCK', id: 'woodblock', symbol: '🪵' },
-            { label: 'COWBELL', id: 'cowbell', symbol: '🔔' },
-            { label: 'CLAVES', id: 'claves', symbol: '🥖' },
-            { label: 'FART', id: 'fart', symbol: '💨' }
+            { id: 'tick', symbol: '⏱️' },
+            { id: 'woodblock', symbol: '🪵' },
+            { id: 'cowbell', symbol: '🔔' },
+            { id: 'claves', symbol: '🥖' },
+            { id: 'fart', symbol: '💨' }
         ];
 
         const playArea = document.getElementById('play-area');
@@ -478,11 +553,15 @@
         const subScroll = document.getElementById('sub-scroll');
         const soundScroll = document.getElementById('sound-scroll');
 
-        function createPicker(container, data, updateFn, defaultIdx) {
+        function createPicker(container, data, updateFn, defaultIdx, type = 'generic') {
             data.forEach((item, idx) => {
                 const el = document.createElement('div');
                 el.className = 'picker-item';
-                el.innerHTML = item.symbol ? `<span class="text-lg">${item.symbol}</span>` : `${item.n}/${item.d}`;
+                if (type === 'sound') {
+                    el.innerHTML = `<span class="text-lg">${item.symbol}</span><span class="text-[8px] mt-1">${translations[currentLang].sounds[idx]}</span>`;
+                } else {
+                    el.innerHTML = item.symbol ? `<span class="text-lg">${item.symbol}</span>` : `${item.n}/${item.d}`;
+                }
                 el.onclick = () => {
                     container.scrollTo({
                         left: el.offsetLeft - (container.clientWidth / 2) + (el.clientWidth / 2),
@@ -694,7 +773,10 @@
         window.addEventListener('resize', positionIndicators);
         createPicker(tsScroll, timeSignatures, updateTS, 3); 
         createPicker(subScroll, subdivisions, updateSub, 0); 
-        createPicker(soundScroll, soundTypes, updateSound, 0);
+        createPicker(soundScroll, soundTypes, updateSound, 0, 'sound');
+        
+        // Initialiseer taal bij start
+        setLang('nl');
         setTimeout(positionIndicators, 300);
     </script>
 </body>
