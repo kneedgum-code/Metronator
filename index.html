@@ -320,6 +320,21 @@
             pointer-events: none;
             user-select: none;
         }
+
+        .top-header {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 45;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: #fbbf24;
+            font-size: 1.25rem;
+            text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -382,6 +397,10 @@
         </div>
 
         <div id="play-area" class="relative flex-grow flex items-center justify-center cursor-pointer bg-black overflow-hidden">
+            <!-- Header Naam -->
+            <div class="top-header">Metronator</div>
+            
+            <!-- Subtiele achtergrond titel -->
             <div class="bg-title">Metronator</div>
             
             <div id="center-pivot" class="absolute w-4 h-4 bg-zinc-800 rounded-full z-40 border border-zinc-600 shadow-[0_0_10px_rgba(0,0,0,0.5)]"></div>
