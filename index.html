@@ -153,6 +153,7 @@
             height: 100vh;
             width: 100vw;
             position: relative;
+            flex-direction: row; /* Default landscape */
         }
 
         .control-panel {
@@ -161,23 +162,47 @@
             z-index: 50;
             transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 300px;
-            height: 100%;
-            border-right: 1px solid #27272a;
+            border-color: #27272a;
+            border-style: solid;
         }
 
-        .control-panel.collapsed {
-            transform: translateX(-250px);
+        /* Landscape adjustments */
+        @media (orientation: landscape) {
+            .control-panel {
+                left: 0; top: 0;
+                width: 300px; height: 100%;
+                border-right-width: 1px;
+                transform: translateX(0);
+            }
+            .control-panel.collapsed { transform: translateX(-250px); }
+            .handle-bar {
+                width: 50px; height: 100%;
+                position: absolute; right: 0; top: 0;
+                flex-direction: column;
+            }
+            .handle-line { width: 5px; height: 40px; }
+            .panel-content { width: 250px; height: 100%; }
+        }
+
+        /* Portrait adjustments */
+        @media (orientation: portrait) {
+            .control-panel {
+                bottom: 0; left: 0;
+                width: 100%; height: 400px;
+                border-top-width: 1px;
+                transform: translateY(0);
+            }
+            .control-panel.collapsed { transform: translateY(350px); }
+            .handle-bar {
+                height: 50px; width: 100%;
+                position: absolute; top: 0; left: 0;
+                flex-direction: row;
+            }
+            .handle-line { width: 40px; height: 5px; }
+            .panel-content { width: 100%; height: 350px; margin-top: 50px; }
         }
 
         .handle-bar {
-            width: 50px;
-            height: 100%;
-            position: absolute;
-            right: 0;
-            top: 0;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -185,8 +210,6 @@
         }
 
         .handle-line {
-            width: 5px;
-            height: 40px;
             border-radius: 3px;
             background-color: #3f3f46;
             transition: background-color 0.3s;
@@ -197,9 +220,7 @@
         }
 
         .panel-content {
-            width: 250px;
             padding: 20px;
-            height: 100%;
             overflow-y: auto;
         }
 
@@ -286,6 +307,19 @@
             font-size: 10px;
         }
         .btn-action.active { background: #fbbf24; color: #000; border-color: #fbbf24; }
+
+        .bg-title {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-weight: 900;
+            font-size: 2rem;
+            color: rgba(255,255,255,0.05);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            pointer-events: none;
+            user-select: none;
+        }
     </style>
 </head>
 <body>
@@ -348,6 +382,8 @@
         </div>
 
         <div id="play-area" class="relative flex-grow flex items-center justify-center cursor-pointer bg-black overflow-hidden">
+            <div class="bg-title">Metronator</div>
+            
             <div id="center-pivot" class="absolute w-4 h-4 bg-zinc-800 rounded-full z-40 border border-zinc-600 shadow-[0_0_10px_rgba(0,0,0,0.5)]"></div>
             
             <div id="drumstick-container">
@@ -372,7 +408,7 @@
         let isRunning = false;
         
         let bpm = 120;
-        let volumeLevel = 0.8; // Standaard volume op 80%
+        let volumeLevel = 0.8; 
         let beatsPerMeasure = 4;
         let subdivision = 1; 
         let soundType = 'tick'; 
@@ -519,7 +555,6 @@
         }
 
         function playSound(time, noteVolume, freq) {
-            // Pas het volume van de individuele noot aan aan het algemene app-volume
             const finalVolume = noteVolume * volumeLevel;
             const g = audioCtx.createGain();
             
@@ -527,24 +562,18 @@
                 const osc = audioCtx.createOscillator();
                 const lfo = audioCtx.createOscillator();
                 const lfoGain = audioCtx.createGain();
-                
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(freq / 10, time);
                 osc.frequency.exponentialRampToValueAtTime(freq / 20, time + 0.15);
-                
                 lfo.type = 'sine';
                 lfo.frequency.setValueAtTime(30, time);
                 lfoGain.gain.setValueAtTime(20, time);
-                
                 lfo.connect(lfoGain);
                 lfoGain.connect(osc.frequency);
-                
                 g.gain.setValueAtTime(finalVolume * 0.8, time);
                 g.gain.linearRampToValueAtTime(0, time + 0.15);
-                
                 osc.connect(g);
                 g.connect(audioCtx.destination);
-                
                 osc.start(time);
                 lfo.start(time);
                 osc.stop(time + 0.15);
@@ -577,7 +606,6 @@
                 
                 setTimeout(() => {
                     if (!isRunning) return;
-                    
                     if (s === 0) {
                         const allHeads = document.querySelectorAll('.drum-head');
                         allHeads.forEach((d, i) => {
