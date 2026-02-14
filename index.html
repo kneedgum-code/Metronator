@@ -546,7 +546,6 @@
         let useAccent = true;
         let cumulativeRotation = 0;
 
-        // Tap tempo variables
         let tapTimes = [];
 
         // Maatsoorten
@@ -556,12 +555,12 @@
             {n: 3, d: 8}, {n: 5, d: 8}, {n: 6, d: 8}, {n: 7, d: 8}, {n: 9, d: 8}, {n: 11, d: 8}, {n: 12, d: 8}
         ];
 
-        // Subdivisies (Triolen verwijderd op verzoek)
+        // Subdivisies
         const subdivisionsList = [
-            { label: '1/2', val: 0.5, symbol: '𝅝' },
-            { label: '1/4', val: 1, symbol: '♩' },
-            { label: '1/8', val: 2, symbol: '♫' },
-            { label: '1/16', val: 4, symbol: '♬' }
+            { label: '1/2', val: 2, symbol: '𝅝' },
+            { label: '1/4', val: 4, symbol: '♩' },
+            { label: '1/8', val: 8, symbol: '♫' },
+            { label: '1/16', val: 16, symbol: '♬' }
         ];
 
         const soundTypes = [
@@ -653,7 +652,7 @@
         }
 
         function resetState() {
-            currentBeat = 0; currentSub = 0; cumulativeRotation = 0; updateDrumstick(0, 0);
+            currentBeat = 0; currentSub = 0; cumulativeRotation = 0; updateDrumstick(0, 0, 1);
         }
 
         collapseBtn.addEventListener('click', () => {
@@ -687,9 +686,11 @@
             }
         }
 
-        function updateDrumstick(beat, sub) {
+        function updateDrumstick(beat, sub, subSteps) {
+            // De stok draait altijd de volledige cirkel over beatsPerMeasure vellen.
             const anglePerBeat = 360 / beatsPerMeasure;
-            const targetRotation = (beat * anglePerBeat) + (sub * (anglePerBeat / subdivisionFactor));
+            // De rotatie binnen de tel wordt bepaald door de verhouding van de huidige sub t.o.v. totaal aantal sub-stappen in die tel.
+            const targetRotation = (beat * anglePerBeat) + (sub * (anglePerBeat / subSteps));
             
             const currentMod = cumulativeRotation % 360;
             let diff = targetRotation - currentMod;
@@ -778,6 +779,14 @@
 
         function scheduler() {
             while (nextNoteTime < audioCtx.currentTime + 0.1) {
+                // Bereken hoeveel subdivisies er in één 'beat unit' passen
+                let stepsPerBeat = subdivisionFactor / noteValue;
+                
+                // Als de subdivisie groter is dan de tel (bijv 1/2 in 4/4), 
+                // is er minder dan 1 stap per beat. 
+                let isLargerThanBeat = stepsPerBeat < 1;
+                let effectiveSteps = isLargerThanBeat ? 1 : stepsPerBeat;
+
                 const b = currentBeat; const s = currentSub; const t = nextNoteTime;
                 const isMeasureBeat = (s === 0);
 
@@ -794,23 +803,31 @@
                             }
                         });
                     }
-                    updateDrumstick(b, s);
+                    updateDrumstick(b, s, effectiveSteps);
                 }, Math.max(0, (t - audioCtx.currentTime) * 1000));
                 
-                if (!isMuted) {
+                // Logica voor het afspelen van geluid bij grote subdivisies
+                let shouldPlaySound = true;
+                if (isLargerThanBeat) {
+                    let beatsBetween = noteValue / subdivisionFactor;
+                    if (b % beatsBetween !== 0) shouldPlaySound = false;
+                }
+
+                if (!isMuted && shouldPlaySound) {
                     const isFirstBeat = (b === 0 && isMeasureBeat);
                     const freq = isFirstBeat && useAccent ? 1000 : (isMeasureBeat ? 700 : 400);
                     const vol = isFirstBeat && useAccent ? 0.6 : (isMeasureBeat ? 0.4 : 0.15);
                     playSound(t, vol, freq);
                 }
                 
+                // Stapduur op basis van de beat unit van de maatsoort
                 const beatDuration = (60.0 / bpm) * (4.0 / noteValue);
-                const stepDuration = beatDuration / subdivisionFactor;
+                const stepDuration = beatDuration / effectiveSteps;
                 
                 nextNoteTime += stepDuration;
                 
                 currentSub++;
-                if (currentSub >= subdivisionFactor - 0.001) { 
+                if (currentSub >= effectiveSteps - 0.001) { 
                     currentSub = 0; 
                     currentBeat = (currentBeat + 1) % beatsPerMeasure; 
                 }
@@ -843,26 +860,14 @@
         tapBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const now = performance.now();
-            
-            // Clear buffer if last tap was too long ago (2 seconds)
-            if (tapTimes.length > 0 && now - tapTimes[tapTimes.length - 1] > 2000) {
-                tapTimes = [];
-            }
-            
+            if (tapTimes.length > 0 && now - tapTimes[tapTimes.length - 1] > 2000) tapTimes = [];
             tapTimes.push(now);
-            
             if (tapTimes.length > 1) {
-                // Limit to last 4 taps for moving average
                 if (tapTimes.length > 4) tapTimes.shift();
-                
                 let intervals = [];
-                for (let i = 1; i < tapTimes.length; i++) {
-                    intervals.push(tapTimes[i] - tapTimes[i-1]);
-                }
-                
+                for (let i = 1; i < tapTimes.length; i++) intervals.push(tapTimes[i] - tapTimes[i-1]);
                 const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
-                const newBpm = 60000 / avgInterval;
-                updateBPM(newBpm);
+                updateBPM(60000 / avgInterval);
             }
         });
 
@@ -898,3 +903,4 @@
     </script>
 </body>
 </html>
+
