@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Metronator Metronoom</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;900&display=swap');
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: white;
+            touch-action: manipulation;
+        }
+
+        /* Drum Indicator Styling */
+        .drum-head {
+            position: absolute;
+            width: 76px;
+            height: 76px;
+            margin-left: -38px;
+            margin-top: -38px;
+            z-index: 30;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .drum-rim {
+            position: absolute;
+            inset: 0;
+            border: 4px solid #a1a1aa; 
+            border-radius: 50%;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5), 0 2px 10px rgba(0,0,0,0.8);
+            background: #27272a;
+        }
+
+        .drum-circle {
+            position: absolute;
+            inset: 6px;
+            background: radial-gradient(circle, #ffffff 0%, #e4e4e7 100%);
+            border: 1px solid #d4d4d8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #18181b;
+            font-weight: 900;
+            font-size: 1.15rem;
+            transition: all 0.1s ease;
+        }
+
+        .lug {
+            position: absolute;
+            width: 8px;
+            height: 12px;
+            background: linear-gradient(to right, #71717a, #e4e4e7, #71717a);
+            border-radius: 2px;
+            border: 1px solid #52525b;
+            z-index: 2;
+        }
+
+        .lug:nth-child(2) { top: -6px; left: 50%; transform: translateX(-50%); }
+        .lug:nth-child(3) { top: 15%; right: -2px; transform: rotate(60deg); }
+        .lug:nth-child(4) { bottom: 15%; right: -2px; transform: rotate(120deg); }
+        .lug:nth-child(5) { bottom: -6px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+        .lug:nth-child(6) { bottom: 15%; left: -2px; transform: rotate(240deg); }
+        .lug:nth-child(7) { top: 15%; left: -2px; transform: rotate(300deg); }
+
+        .drum-active {
+            transform: scale(1.25);
+            z-index: 31;
+        }
+
+        .drum-active .drum-circle {
+            background: radial-gradient(circle, #fde047 0%, #ca8a04 100%);
+            border-color: #fbbf24;
+            box-shadow: inset 0 0 15px rgba(251, 191, 36, 0.5);
+        }
+        
+        .drum-active .drum-rim {
+            border-color: #f59e0b;
+        }
+
+        #drumstick-container {
+            position: absolute;
+            width: 0;
+            height: 0;
+            z-index: 10;
+            transition: transform 0.1s linear;
+        }
+
+        .drumstick-pointer {
+            position: absolute;
+            bottom: 0;
+            left: -5px;
+            width: 10px; 
+            background: linear-gradient(to right, #e3c193 0%, #f5deb3 50%, #d4b483 100%);
+            box-shadow: 2px 5px 10px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            clip-path: polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%);
+        }
+
+        .drumstick-tip {
+            position: absolute;
+            left: -3.5px;
+            width: 7px;
+            height: 12px;
+            background: radial-gradient(circle at 50% 30%, #fdf5e6 0%, #e3c193 100%);
+            border-radius: 50% 50% 45% 45%;
+            z-index: 11;
+        }
+
+        .stick-branding {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .vf-flag {
+            width: 6px;
+            height: 10px;
+            background-color: #c41e3a;
+            margin-bottom: 4px;
+        }
+
+        .ticks-vertical-text {
+            color: rgba(0, 0, 0, 0.8);
+            font-size: 7px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            margin-bottom: 10px;
+        }
+
+        .app-layout {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        .control-panel {
+            background: rgba(18, 18, 20, 0.98);
+            backdrop-filter: blur(25px);
+            z-index: 50;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 300px;
+            height: 100%;
+            border-right: 1px solid #27272a;
+        }
+
+        .control-panel.collapsed {
+            transform: translateX(-250px);
+        }
+
+        .handle-bar {
+            width: 50px;
+            height: 100%;
+            position: absolute;
+            right: 0;
+            top: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .handle-line {
+            width: 5px;
+            height: 40px;
+            border-radius: 3px;
+            background-color: #3f3f46;
+            transition: background-color 0.3s;
+        }
+
+        .handle-bar:hover .handle-line {
+            background-color: #fbbf24;
+        }
+
+        .panel-content {
+            width: 250px;
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .picker-container {
+            position: relative;
+            width: 100%;
+            height: 65px;
+            overflow: hidden;
+            background: #09090b;
+            border-radius: 12px;
+            border: 1px solid #18181b;
+        }
+
+        .scroll-area {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            overflow-x: scroll;
+            scroll-snap-type: x mandatory;
+            padding-left: 50%;
+            padding-right: 50%;
+            scrollbar-width: none;
+        }
+
+        .scroll-area::-webkit-scrollbar { display: none; }
+
+        .picker-item {
+            flex: 0 0 65px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 0.8rem;
+            color: #3f3f46;
+            scroll-snap-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .picker-item.active {
+            color: #fbbf24;
+            transform: scale(1.15);
+        }
+
+        .picker-indicator {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(251, 191, 36, 0.3);
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #18181b;
+            height: 8px;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #fbbf24;
+            border: 2px solid #fff;
+            cursor: pointer;
+        }
+
+        .btn-action {
+            background: #09090b;
+            border: 1px solid #27272a;
+            transition: all 0.2s ease;
+            padding: 10px;
+            border-radius: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+        .btn-action.active { background: #fbbf24; color: #000; border-color: #fbbf24; }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <div id="control-panel" class="control-panel">
+            <div class="handle-bar" id="collapse-btn">
+                <div class="handle-line"></div>
+            </div>
+
+            <div class="panel-content space-y-6">
+                <!-- Tempo -->
+                <div>
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Tempo</span>
+                        <span class="text-xl font-black text-yellow-500"><span id="bpm-val">120</span> <small class="text-[10px]">BPM</small></span>
+                    </div>
+                    <input type="range" id="bpm-slider" min="40" max="240" value="120">
+                </div>
+
+                <!-- Volumeregeling -->
+                <div>
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Volume</span>
+                        <span class="text-sm font-black text-yellow-500"><span id="vol-val">80</span>%</span>
+                    </div>
+                    <input type="range" id="vol-slider" min="0" max="100" value="80">
+                </div>
+                
+                <div class="space-y-1">
+                    <label class="text-zinc-500 text-[10px] uppercase font-black">Maatsoort</label>
+                    <div class="picker-container">
+                        <div class="picker-indicator"></div>
+                        <div id="ts-scroll" class="scroll-area"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-zinc-500 text-[10px] uppercase font-black">Subdivisie</label>
+                    <div class="picker-container">
+                        <div class="picker-indicator"></div>
+                        <div id="sub-scroll" class="scroll-area"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-zinc-500 text-[10px] uppercase font-black">Instrument</label>
+                    <div class="picker-container">
+                        <div class="picker-indicator"></div>
+                        <div id="sound-scroll" class="scroll-area"></div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="sound-btn" class="btn-action active flex-1">Geluid</button>
+                    <button id="accent-btn" class="btn-action active flex-1">Accent</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="play-area" class="relative flex-grow flex items-center justify-center cursor-pointer bg-black overflow-hidden">
+            <div id="center-pivot" class="absolute w-4 h-4 bg-zinc-800 rounded-full z-40 border border-zinc-600 shadow-[0_0_10px_rgba(0,0,0,0.5)]"></div>
+            
+            <div id="drumstick-container">
+                <div id="drumstick-tip" class="drumstick-tip"></div>
+                <div id="drumstick" class="drumstick-pointer">
+                    <div class="stick-branding">
+                        <div class="ticks-vertical-text">METRONATOR</div>
+                        <div class="vf-flag"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="indicators-container" class="absolute w-full h-full flex items-center justify-center"></div>
+        </div>
+
+    </div>
+
+    <script>
+        let audioCtx = null;
+        let nextNoteTime = 0.0;
+        let timerID = null;
+        let isRunning = false;
+        
+        let bpm = 120;
+        let volumeLevel = 0.8; // Standaard volume op 80%
+        let beatsPerMeasure = 4;
+        let subdivision = 1; 
+        let soundType = 'tick'; 
+        
+        let currentBeat = 0;
+        let currentSub = 0;
+        let isMuted = false;
+        let useAccent = true;
+        let cumulativeRotation = 0;
+
+        const timeSignatures = [
+            {n: 7, d: 4}, {n: 6, d: 4}, {n: 5, d: 4}, {n: 4, d: 4}, 
+            {n: 3, d: 4}, {n: 2, d: 4}, {n: 7, d: 2}, {n: 6, d: 2},
+            {n: 5, d: 2}, {n: 4, d: 2}, {n: 3, d: 2}, {n: 2, d: 2},
+            {n: 12, d: 8}, {n: 11, d: 8}, {n: 9, d: 8}, {n: 7, d: 8},
+            {n: 6, d: 8}, {n: 5, d: 8}, {n: 3, d: 8}
+        ];
+
+        const subdivisions = [
+            { label: '1/4', val: 1, symbol: '♩' },
+            { label: '1/8', val: 2, symbol: '♫' },
+            { label: '1/3', val: 3, symbol: '♩³' },
+            { label: '1/16', val: 4, symbol: '♬' }
+        ];
+
+        const soundTypes = [
+            { label: 'STANDAARD', id: 'tick', symbol: '⏱️' },
+            { label: 'WOODBLOCK', id: 'woodblock', symbol: '🪵' },
+            { label: 'COWBELL', id: 'cowbell', symbol: '🔔' },
+            { label: 'CLAVES', id: 'claves', symbol: '🥖' },
+            { label: 'FART', id: 'fart', symbol: '💨' }
+        ];
+
+        const playArea = document.getElementById('play-area');
+        const indicatorsContainer = document.getElementById('indicators-container');
+        const drumstickContainer = document.getElementById('drumstick-container');
+        const drumstick = document.getElementById('drumstick');
+        const drumstickTip = document.getElementById('drumstick-tip');
+        const bpmSlider = document.getElementById('bpm-slider');
+        const bpmVal = document.getElementById('bpm-val');
+        const volSlider = document.getElementById('vol-slider');
+        const volVal = document.getElementById('vol-val');
+        const soundBtn = document.getElementById('sound-btn');
+        const accentBtn = document.getElementById('accent-btn');
+        const controlPanel = document.getElementById('control-panel');
+        const collapseBtn = document.getElementById('collapse-btn');
+        const tsScroll = document.getElementById('ts-scroll');
+        const subScroll = document.getElementById('sub-scroll');
+        const soundScroll = document.getElementById('sound-scroll');
+
+        function createPicker(container, data, updateFn, defaultIdx) {
+            data.forEach((item, idx) => {
+                const el = document.createElement('div');
+                el.className = 'picker-item';
+                el.innerHTML = item.symbol ? `<span class="text-lg">${item.symbol}</span>` : `${item.n}/${item.d}`;
+                el.onclick = () => {
+                    container.scrollTo({
+                        left: el.offsetLeft - (container.clientWidth / 2) + (el.clientWidth / 2),
+                        behavior: 'smooth'
+                    });
+                };
+                container.appendChild(el);
+            });
+
+            let lastIdx = -1;
+            container.addEventListener('scroll', () => {
+                const center = container.scrollLeft + (container.clientWidth / 2);
+                let closestIdx = 0;
+                let minDiff = Infinity;
+                container.querySelectorAll('.picker-item').forEach((el, idx) => {
+                    const elCenter = el.offsetLeft + (el.clientWidth / 2);
+                    const diff = Math.abs(center - elCenter);
+                    if (diff < minDiff) { minDiff = diff; closestIdx = idx; }
+                });
+                if (closestIdx !== lastIdx) {
+                    lastIdx = closestIdx;
+                    container.querySelectorAll('.picker-item').forEach((el, i) => {
+                        el.classList.toggle('active', i === closestIdx);
+                    });
+                    updateFn(closestIdx);
+                }
+            });
+
+            setTimeout(() => {
+                const items = container.querySelectorAll('.picker-item');
+                if (items[defaultIdx]) {
+                    const target = items[defaultIdx];
+                    container.scrollLeft = target.offsetLeft - (container.clientWidth / 2) + (target.clientWidth / 2);
+                }
+            }, 150);
+        }
+
+        function updateTS(idx) { beatsPerMeasure = timeSignatures[idx].n; positionIndicators(); resetState(); }
+        function updateSub(idx) { subdivision = subdivisions[idx].val; resetState(); }
+        function updateSound(idx) { soundType = soundTypes[idx].id; }
+
+        function resetState() {
+            currentBeat = 0; currentSub = 0; cumulativeRotation = 0; updateDrumstick(0, 0);
+        }
+
+        collapseBtn.addEventListener('click', () => {
+            controlPanel.classList.toggle('collapsed');
+            setTimeout(positionIndicators, 600);
+        });
+
+        function positionIndicators() {
+            indicatorsContainer.innerHTML = '';
+            const rect = playArea.getBoundingClientRect();
+            const radius = Math.min(rect.width, rect.height) * 0.35;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            drumstick.style.height = `${radius}px`;
+            drumstickTip.style.top = `-${radius + 10}px`;
+
+            for (let i = 0; i < beatsPerMeasure; i++) {
+                const div = document.createElement('div');
+                div.className = 'drum-head';
+                div.id = `drum-${i}`;
+                div.innerHTML = `
+                    <div class="drum-rim"></div>
+                    <div class="lug"></div>
+                    <div class="lug"></div>
+                    <div class="lug"></div>
+                    <div class="lug"></div>
+                    <div class="lug"></div>
+                    <div class="lug"></div>
+                    <div class="drum-circle">${i + 1}</div>
+                `;
+                const angle = (i * (360 / beatsPerMeasure) - 90) * (Math.PI / 180);
+                div.style.left = `${centerX + radius * Math.cos(angle)}px`;
+                div.style.top = `${centerY + radius * Math.sin(angle)}px`;
+                indicatorsContainer.appendChild(div);
+            }
+        }
+
+        function updateDrumstick(beat, sub) {
+            const targetRotation = (beat * (360 / beatsPerMeasure)) + (sub * ((360 / beatsPerMeasure) / subdivision));
+            const currentMod = cumulativeRotation % 360;
+            let diff = targetRotation - currentMod;
+            if (diff <= -0.1) diff += 360; 
+            cumulativeRotation += diff;
+            drumstickContainer.style.transform = `rotate(${cumulativeRotation}deg)`;
+        }
+
+        function playSound(time, noteVolume, freq) {
+            // Pas het volume van de individuele noot aan aan het algemene app-volume
+            const finalVolume = noteVolume * volumeLevel;
+            const g = audioCtx.createGain();
+            
+            if (soundType === 'fart') {
+                const osc = audioCtx.createOscillator();
+                const lfo = audioCtx.createOscillator();
+                const lfoGain = audioCtx.createGain();
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq / 10, time);
+                osc.frequency.exponentialRampToValueAtTime(freq / 20, time + 0.15);
+                
+                lfo.type = 'sine';
+                lfo.frequency.setValueAtTime(30, time);
+                lfoGain.gain.setValueAtTime(20, time);
+                
+                lfo.connect(lfoGain);
+                lfoGain.connect(osc.frequency);
+                
+                g.gain.setValueAtTime(finalVolume * 0.8, time);
+                g.gain.linearRampToValueAtTime(0, time + 0.15);
+                
+                osc.connect(g);
+                g.connect(audioCtx.destination);
+                
+                osc.start(time);
+                lfo.start(time);
+                osc.stop(time + 0.15);
+                lfo.stop(time + 0.15);
+                return;
+            }
+
+            const osc = audioCtx.createOscillator();
+            if (soundType === 'woodblock') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq * 1.5, time);
+                osc.frequency.exponentialRampToValueAtTime(freq, time + 0.05);
+            } else if (soundType === 'cowbell') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq * 0.8, time);
+            } else {
+                osc.frequency.setValueAtTime(freq, time);
+                osc.frequency.exponentialRampToValueAtTime(40, time + 0.04);
+            }
+
+            g.gain.setValueAtTime(finalVolume, time);
+            g.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(time); osc.stop(time + 0.1);
+        }
+
+        function scheduler() {
+            while (nextNoteTime < audioCtx.currentTime + 0.1) {
+                const b = currentBeat; const s = currentSub; const t = nextNoteTime;
+                
+                setTimeout(() => {
+                    if (!isRunning) return;
+                    
+                    if (s === 0) {
+                        const allHeads = document.querySelectorAll('.drum-head');
+                        allHeads.forEach((d, i) => {
+                            if (i === b) {
+                                d.classList.add('drum-active');
+                                setTimeout(() => d.classList.remove('drum-active'), 150);
+                            } else {
+                                d.classList.remove('drum-active');
+                            }
+                        });
+                    }
+                    updateDrumstick(b, s);
+                }, Math.max(0, (t - audioCtx.currentTime) * 1000));
+                
+                if (!isMuted) {
+                    const isMainBeat = (s === 0);
+                    const isFirstBeat = (b === 0 && isMainBeat);
+                    const freq = isFirstBeat && useAccent ? 1000 : (isMainBeat ? 700 : 400);
+                    const vol = isFirstBeat && useAccent ? 0.6 : (isMainBeat ? 0.4 : 0.15);
+                    playSound(t, vol, freq);
+                }
+                
+                nextNoteTime += (60.0 / bpm) / subdivision;
+                currentSub++;
+                if (currentSub >= subdivision) { currentSub = 0; currentBeat = (currentBeat + 1) % beatsPerMeasure; }
+            }
+            if (isRunning) timerID = setTimeout(scheduler, 25);
+        }
+
+        async function startStop() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            if (isRunning) {
+                isRunning = false; clearTimeout(timerID);
+                document.querySelectorAll('.drum-head').forEach(d => d.classList.remove('drum-active'));
+            } else {
+                resetState(); nextNoteTime = audioCtx.currentTime + 0.05; isRunning = true; scheduler();
+            }
+        }
+
+        playArea.addEventListener('click', (e) => {
+            if (e.target.closest('.control-panel')) return;
+            startStop();
+        });
+
+        bpmSlider.addEventListener('input', (e) => { 
+            bpm = parseInt(e.target.value); 
+            bpmVal.innerText = bpm; 
+        });
+
+        volSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            volumeLevel = val / 100;
+            volVal.innerText = val;
+        });
+
+        soundBtn.addEventListener('click', () => { 
+            isMuted = !isMuted; 
+            soundBtn.classList.toggle('active', !isMuted); 
+        });
+
+        accentBtn.addEventListener('click', () => { 
+            useAccent = !useAccent; 
+            accentBtn.classList.toggle('active', useAccent); 
+        });
+
+        window.addEventListener('resize', positionIndicators);
+        createPicker(tsScroll, timeSignatures, updateTS, 3); 
+        createPicker(subScroll, subdivisions, updateSub, 0); 
+        createPicker(soundScroll, soundTypes, updateSound, 0);
+        setTimeout(positionIndicators, 300);
+    </script>
+</body>
+</html>
