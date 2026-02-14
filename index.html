@@ -29,7 +29,7 @@
             height: 76px;
             margin-left: -38px;
             margin-top: -38px;
-            z-index: 30;
+            z-index: 10;
             transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
@@ -76,7 +76,7 @@
 
         .drum-active {
             transform: scale(1.25);
-            z-index: 31;
+            z-index: 11;
         }
 
         .drum-active .drum-circle {
@@ -93,7 +93,7 @@
             position: absolute;
             width: 0;
             height: 0;
-            z-index: 10;
+            z-index: 40;
             transition: transform 0.1s linear;
         }
 
@@ -117,7 +117,7 @@
             height: 12px;
             background: radial-gradient(circle at 50% 30%, #fdf5e6 0%, #e3c193 100%);
             border-radius: 50% 50% 45% 45%;
-            z-index: 11;
+            z-index: 41;
         }
 
         .stick-branding {
@@ -153,7 +153,7 @@
             height: 100vh;
             width: 100vw;
             position: relative;
-            flex-direction: row; /* Default landscape */
+            flex-direction: row;
         }
 
         .control-panel {
@@ -166,7 +166,6 @@
             border-style: solid;
         }
 
-        /* Landscape adjustments */
         @media (orientation: landscape) {
             .control-panel {
                 left: 0; top: 0;
@@ -184,7 +183,6 @@
             .panel-content { width: 250px; height: 100%; }
         }
 
-        /* Portrait adjustments */
         @media (orientation: portrait) {
             .control-panel {
                 bottom: 0; left: 0;
@@ -427,13 +425,9 @@
         </div>
 
         <div id="play-area" class="relative flex-grow flex items-center justify-center cursor-pointer bg-black overflow-hidden">
-            <!-- Header Naam -->
             <div class="top-header">Metronator</div>
-            
-            <!-- Subtiele achtergrond titel -->
             <div class="bg-title">Metronator</div>
-            
-            <div id="center-pivot" class="absolute w-4 h-4 bg-zinc-800 rounded-full z-40 border border-zinc-600 shadow-[0_0_10px_rgba(0,0,0,0.5)]"></div>
+            <div id="center-pivot" class="absolute w-4 h-4 bg-zinc-800 rounded-full z-45 border border-zinc-600 shadow-[0_0_10px_rgba(0,0,0,0.5)]"></div>
             
             <div id="drumstick-container">
                 <div id="drumstick-tip" class="drumstick-tip"></div>
@@ -451,7 +445,6 @@
     </div>
 
     <script>
-        // Taalkeuze logica
         const translations = {
             nl: {
                 tempo: "Tempo",
@@ -484,14 +477,12 @@
                 el.innerText = translations[lang][key];
             });
 
-            // Update picker labels
             const soundItems = soundScroll.querySelectorAll('.picker-item');
             soundItems.forEach((item, idx) => {
                 const symbol = soundTypes[idx].symbol;
                 item.innerHTML = `<span class="text-lg">${symbol}</span><span class="text-[8px] mt-1">${translations[lang].sounds[idx]}</span>`;
             });
 
-            // Update buttons
             document.getElementById('lang-nl').classList.toggle('active', lang === 'nl');
             document.getElementById('lang-en').classList.toggle('active', lang === 'en');
         }
@@ -628,12 +619,7 @@
                 div.id = `drum-${i}`;
                 div.innerHTML = `
                     <div class="drum-rim"></div>
-                    <div class="lug"></div>
-                    <div class="lug"></div>
-                    <div class="lug"></div>
-                    <div class="lug"></div>
-                    <div class="lug"></div>
-                    <div class="lug"></div>
+                    <div class="lug"></div><div class="lug"></div><div class="lug"></div><div class="lug"></div><div class="lug"></div><div class="lug"></div>
                     <div class="drum-circle">${i + 1}</div>
                 `;
                 const angle = (i * (360 / beatsPerMeasure) - 90) * (Math.PI / 180);
@@ -655,53 +641,95 @@
         function playSound(time, noteVolume, freq) {
             const finalVolume = noteVolume * volumeLevel;
             const g = audioCtx.createGain();
+            g.connect(audioCtx.destination);
             
-            if (soundType === 'fart') {
+            if (soundType === 'woodblock') {
                 const osc = audioCtx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq * 1.8, time);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.2, time + 0.05);
+                g.gain.setValueAtTime(finalVolume * 1.2, time);
+                g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                osc.connect(g);
+                osc.start(time);
+                osc.stop(time + 0.05);
+            } 
+            else if (soundType === 'cowbell') {
+                // Dual oscillator for metallic cowbell sound (approx 800Hz + 540Hz)
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                osc1.type = 'square';
+                osc2.type = 'square';
+                osc1.frequency.setValueAtTime(freq, time);
+                osc2.frequency.setValueAtTime(freq * 1.48, time);
+                
+                const bandpass = audioCtx.createBiquadFilter();
+                bandpass.type = 'bandpass';
+                bandpass.frequency.setValueAtTime(freq * 1.2, time);
+                bandpass.Q.setValueAtTime(2, time);
+                
+                osc1.connect(bandpass);
+                osc2.connect(bandpass);
+                bandpass.connect(g);
+                
+                g.gain.setValueAtTime(finalVolume, time);
+                g.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+                osc1.start(time); osc2.start(time);
+                osc1.stop(time + 0.2); osc2.stop(time + 0.2);
+            } 
+            else if (soundType === 'claves') {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(2500, time);
+                g.gain.setValueAtTime(finalVolume * 1.5, time);
+                g.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
+                osc.connect(g);
+                osc.start(time);
+                osc.stop(time + 0.02);
+            }
+            else if (soundType === 'fart') {
+                const osc = audioCtx.createOscillator();
+                const filter = audioCtx.createBiquadFilter();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq / 8, time);
+                osc.frequency.exponentialRampToValueAtTime(freq / 16, time + 0.25);
+                
+                // LFO for the 'flutter' effect
                 const lfo = audioCtx.createOscillator();
                 const lfoGain = audioCtx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(freq / 10, time);
-                osc.frequency.exponentialRampToValueAtTime(freq / 20, time + 0.15);
-                lfo.type = 'sine';
-                lfo.frequency.setValueAtTime(30, time);
-                lfoGain.gain.setValueAtTime(20, time);
+                lfo.frequency.setValueAtTime(15 + Math.random() * 10, time);
+                lfoGain.gain.setValueAtTime(30, time);
                 lfo.connect(lfoGain);
                 lfoGain.connect(osc.frequency);
-                g.gain.setValueAtTime(finalVolume * 0.8, time);
-                g.gain.linearRampToValueAtTime(0, time + 0.15);
-                osc.connect(g);
-                g.connect(audioCtx.destination);
-                osc.start(time);
-                lfo.start(time);
-                osc.stop(time + 0.15);
-                lfo.stop(time + 0.15);
-                return;
-            }
 
-            const osc = audioCtx.createOscillator();
-            if (soundType === 'woodblock') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq * 1.5, time);
-                osc.frequency.exponentialRampToValueAtTime(freq, time + 0.05);
-            } else if (soundType === 'cowbell') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(freq * 0.8, time);
-            } else {
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(400, time);
+                
+                osc.connect(filter);
+                filter.connect(g);
+
+                g.gain.setValueAtTime(finalVolume, time);
+                g.gain.linearRampToValueAtTime(finalVolume * 0.8, time + 0.1);
+                g.gain.linearRampToValueAtTime(0, time + 0.3);
+                
+                osc.start(time); lfo.start(time);
+                osc.stop(time + 0.3); lfo.stop(time + 0.3);
+            }
+            else { // Default tick
+                const osc = audioCtx.createOscillator();
                 osc.frequency.setValueAtTime(freq, time);
                 osc.frequency.exponentialRampToValueAtTime(40, time + 0.04);
+                g.gain.setValueAtTime(finalVolume, time);
+                g.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+                osc.connect(g);
+                osc.start(time);
+                osc.stop(time + 0.1);
             }
-
-            g.gain.setValueAtTime(finalVolume, time);
-            g.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
-            osc.connect(g); g.connect(audioCtx.destination);
-            osc.start(time); osc.stop(time + 0.1);
         }
 
         function scheduler() {
             while (nextNoteTime < audioCtx.currentTime + 0.1) {
                 const b = currentBeat; const s = currentSub; const t = nextNoteTime;
-                
                 setTimeout(() => {
                     if (!isRunning) return;
                     if (s === 0) {
@@ -775,7 +803,6 @@
         createPicker(subScroll, subdivisions, updateSub, 0); 
         createPicker(soundScroll, soundTypes, updateSound, 0, 'sound');
         
-        // Initialiseer taal bij start
         setLang('nl');
         setTimeout(positionIndicators, 300);
     </script>
